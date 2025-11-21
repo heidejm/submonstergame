@@ -6,6 +6,24 @@
 
 ---
 
+## Phase Progress Checklist
+
+| Phase | Name | Status | Key Deliverable |
+|-------|------|--------|-----------------|
+| 0 | Development Environment Setup | ✅ Complete | Unity 6 + VS Code configured |
+| 1 | Foundation & Grid System | ⬜ Not Started | 3D grid logic + visualization |
+| 2 | Entity System & Turn Manager | ⬜ Not Started | Submarines, monsters, turn order |
+| 3 | Command Pattern & Movement | ⬜ Not Started | Movement with pathfinding |
+| 4 | Unity Presentation Layer | ⬜ Not Started | Visual representation + input |
+| 5 | Combat System | ⬜ Not Started | Attacks, damage, health |
+| 6 | Monster AI | ⬜ Not Started | Autonomous enemy behavior |
+| 7 | Camera & UX Polish | ⬜ Not Started | Free camera + UI improvements |
+| 8 | Integration & Documentation | ⬜ Not Started | Testing, docs, v0.1.0 release |
+
+**Legend**: ✅ Complete | 🔄 In Progress | ⬜ Not Started
+
+---
+
 ## Executive Summary
 
 This plan breaks down the minimal viable prototype into 8 sequential phases. Each phase delivers a testable vertical slice while maintaining strict adherence to docs/STANDARDS.md principles. The architecture prioritizes separation of concerns, multiplayer-readiness, and maintainability from day one.
@@ -15,10 +33,10 @@ This plan breaks down the minimal viable prototype into 8 sequential phases. Eac
 ## Technology Stack
 
 ### Core Technologies
-- **Engine**: Unity 2022.3 LTS (Long Term Support)
+- **Engine**: Unity 6 (Built-in Render Pipeline)
 - **Language**: C# (.NET Standard 2.1)
 - **Version Control**: Git
-- **IDE**: Visual Studio Community 2022 OR VS Code
+- **IDE**: VS Code with C#, C# Dev Kit, and Unity extensions
 
 ### Unity Packages (All Free)
 - **Test Framework**: Built-in unit and integration testing
