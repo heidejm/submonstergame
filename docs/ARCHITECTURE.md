@@ -1,6 +1,6 @@
 # Architecture Guide - Submarine Monster Tactical Game
 
-**Version**: 1.0
+**Version**: 1.1
 **Last Updated**: 2025-11-21
 
 ---
@@ -49,8 +49,28 @@ This document describes the architectural design of the Submarine Monster Tactic
 │  └─────────────────────────────────────────────────────┘   │
 │                                                              │
 │  ┌─────────────────────────────────────────────────────┐   │
-│  │               Future Systems (Phase 2+)              │   │
-│  │  Entities | Combat | TurnManagement | AI | Commands  │   │
+│  │                  Entity System                       │   │
+│  │  ┌─────────┐  ┌─────────┐  ┌───────────────────┐   │   │
+│  │  │ IEntity │  │ Entity  │  │ EntityManager     │   │   │
+│  │  │(interf.)│  │ (base)  │  │ (tracks entities) │   │   │
+│  │  └─────────┘  └─────────┘  └───────────────────┘   │   │
+│  │  ┌─────────┐  ┌─────────┐  ┌───────────────────┐   │   │
+│  │  │Submarine│  │ Monster │  │ EntityConfig      │   │   │
+│  │  │ (class) │  │ (class) │  │ (config classes)  │   │   │
+│  │  └─────────┘  └─────────┘  └───────────────────┘   │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                              │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │                Turn Management                       │   │
+│  │  ┌─────────────┐  ┌────────────────────────────┐   │   │
+│  │  │ TurnPhase   │  │ TurnManager                │   │   │
+│  │  │   (enum)    │  │ (turn order, phase logic)  │   │   │
+│  │  └─────────────┘  └────────────────────────────┘   │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                              │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │               Future Systems (Phase 3+)              │   │
+│  │  Combat | AI | Commands                              │   │
 │  └─────────────────────────────────────────────────────┘   │
 │                                                              │
 │  - Pure C# (no UnityEngine references)                      │
@@ -74,12 +94,12 @@ This document describes the architectural design of the Submarine Monster Tactic
 
 **Namespaces**:
 - `SubGame.Core.Grid` - 3D grid system
-- `SubGame.Core.Entities` - Submarines, monsters (future)
+- `SubGame.Core.Entities` - Entity interfaces, base class, Submarine, Monster
+- `SubGame.Core.Config` - Entity configuration classes
+- `SubGame.Core.TurnManagement` - Turn order, phases
 - `SubGame.Core.Combat` - Damage, attacks (future)
-- `SubGame.Core.TurnManagement` - Turn order, phases (future)
 - `SubGame.Core.AI` - Monster AI (future)
 - `SubGame.Core.Commands` - Command pattern actions (future)
-- `SubGame.Core.Config` - Game constants, balance data (future)
 
 ### SubGame.Unity
 
@@ -166,6 +186,168 @@ Concrete implementation of IGridSystem for bounded 3D grids.
 
 ---
 
+## Entity System Design
+
+### IEntity Interface
+
+Interface defining common properties and behaviors for all game entities.
+
+```
+IEntity
+├── Id: Guid (unique identifier)
+├── Name: string (display name)
+├── Position: GridCoordinate (current location)
+├── Health / MaxHealth: int (hit points)
+├── MovementRange: int (cells per turn)
+├── AttackRange: int (attack distance)
+├── AttackDamage: int (base damage)
+├── IsAlive: bool (Health > 0)
+├── EntityType: EntityType (Submarine or Monster)
+├── TakeDamage(amount) → void
+├── Heal(amount) → void
+├── SetPosition(newPosition) → void
+├── OnDamageTaken: event (entity, damage)
+├── OnDeath: event (entity)
+└── OnMoved: event (entity, oldPos, newPos)
+```
+
+### Entity Base Class
+
+Abstract class implementing IEntity with common functionality.
+
+**Key Features**:
+- Constructor validation for all parameters
+- Health clamping (0 to MaxHealth)
+- Event firing for damage, death, and movement
+- Dead entities ignore further damage/healing
+
+### Submarine & Monster Classes
+
+Concrete entity implementations.
+
+```
+Submarine (EntityType.Submarine)
+├── Default: 100 HP, 3 movement, 2 attack range, 25 damage
+└── Faster and more agile than monsters
+
+Monster (EntityType.Monster)
+├── Default: 200 HP, 2 movement, 1 attack range, 40 damage
+└── Tougher and hits harder than submarines
+```
+
+### EntityConfig Classes
+
+Configuration objects for entity stats, enabling data-driven design.
+
+```
+EntityConfig (abstract base)
+├── Name: string
+├── MaxHealth: int
+├── MovementRange: int
+├── AttackRange: int
+├── AttackDamage: int
+└── IsValid() → bool
+
+SubmarineConfig : EntityConfig (submarine defaults)
+MonsterConfig : EntityConfig (monster defaults)
+```
+
+### EntityManager
+
+Central manager for all entities in the game.
+
+```
+EntityManager
+├── AddEntity(entity) → void (validates position)
+├── RemoveEntity(entityId) → bool
+├── GetEntity(entityId) → IEntity
+├── GetEntityAtPosition(position) → IEntity
+├── GetSubmarines() → IEnumerable<IEntity>
+├── GetMonsters() → IEnumerable<IEntity>
+├── GetLivingEntities() → IEnumerable<IEntity>
+├── GetEntitiesInRange(center, range) → IEnumerable<IEntity>
+├── IsValidMovePosition(position) → bool
+├── OnEntityAdded: event
+└── OnEntityRemoved: event
+```
+
+**Key Features**:
+- Automatically updates grid occupancy on add/remove/move
+- Subscribes to entity events for death and movement
+- Validates positions against grid bounds and occupancy
+
+---
+
+## Turn Management System Design
+
+### TurnPhase Enum
+
+Defines the phases within each game turn.
+
+```
+TurnPhase
+├── TurnStart     - Start of turn, before actions
+├── PlayerAction  - Submarines take actions
+├── EnemyAction   - Monsters take actions
+└── TurnEnd       - End of turn, cleanup
+```
+
+### TurnManager
+
+Orchestrates turn order and phase progression.
+
+```
+TurnManager
+├── CurrentTurn: int (1-based turn counter)
+├── CurrentPhase: TurnPhase
+├── ActiveEntity: IEntity (whose turn it is)
+├── HasStarted: bool
+├── IsPlayerPhase / IsEnemyPhase: bool
+├── StartGame() → void
+├── AdvancePhase() → void
+├── EndCurrentEntityTurn() → void
+├── Reset() → void
+├── GetTurnOrder() → IReadOnlyList<IEntity>
+├── OnTurnStarted: event (turnNumber)
+├── OnTurnEnded: event (turnNumber)
+├── OnPhaseChanged: event (newPhase)
+└── OnActiveEntityChanged: event (entity)
+```
+
+**Turn Flow**:
+```
+StartGame()
+    │
+    ▼
+┌──────────────┐
+│  TurnStart   │ ◄─────────────────────────────┐
+└──────┬───────┘                               │
+       │ AdvancePhase()                        │
+       ▼                                       │
+┌──────────────┐                               │
+│ PlayerAction │ (cycles through submarines)   │
+└──────┬───────┘                               │
+       │ AdvancePhase() (no more subs)         │
+       ▼                                       │
+┌──────────────┐                               │
+│ EnemyAction  │ (cycles through monsters)     │
+└──────┬───────┘                               │
+       │ AdvancePhase() (no more monsters)     │
+       ▼                                       │
+┌──────────────┐                               │
+│   TurnEnd    │                               │
+└──────┬───────┘                               │
+       │ AdvancePhase()                        │
+       └───────────────────────────────────────┘
+```
+
+**Key Features**:
+- Builds turn order at start of each turn (submarines first, then monsters)
+- Skips dead entities automatically
+- Events for all state transitions (enables UI updates)
+
+---
+
 ## Unity Presentation Layer
 
 ### GridVisualizer
@@ -235,9 +417,18 @@ EntityView.UpdatePosition() (Unity)
 - Equality based on value, not reference
 - Safe for collections and dictionary keys
 
-**Interface Segregation (IGridSystem)**:
-- Clients depend on interface, not implementation
+**Interface Segregation (IGridSystem, IEntity)**:
+- Clients depend on interfaces, not implementations
 - Allows for future alternative implementations
+
+**Observer Pattern (Entity/TurnManager Events)**:
+- Events for state changes (damage, death, movement, turn changes)
+- Decouples Core from Unity presentation
+- Enables reactive UI updates
+
+**Template Method (Entity base class)**:
+- Base class defines common behavior
+- Subclasses (Submarine, Monster) provide specific details
 
 ### Patterns Planned for Future Phases
 
@@ -246,13 +437,9 @@ EntityView.UpdatePosition() (Unity)
 - Enables undo, replay, networking
 - `MoveCommand`, `AttackCommand`, etc.
 
-**Observer Pattern** (Phase 4):
-- Events for state changes
-- Decouples Core from Unity presentation
-
-**State Pattern** (Phase 2):
-- Turn phases as state objects
-- Clean phase transitions
+**State Pattern** (Future, if needed):
+- Turn phases could become state objects
+- Currently handled with enum + switch
 
 **Facade Pattern** (Phase 3):
 - `GameState` as single entry point to Core
@@ -338,12 +525,20 @@ Assets/
 │   │   │   ├── GridCoordinate.cs
 │   │   │   ├── IGridSystem.cs
 │   │   │   └── GridSystem.cs
-│   │   ├── Entities/           # Future
+│   │   ├── Entities/
+│   │   │   ├── IEntity.cs
+│   │   │   ├── Entity.cs
+│   │   │   ├── Submarine.cs
+│   │   │   ├── Monster.cs
+│   │   │   └── EntityManager.cs
+│   │   ├── Config/
+│   │   │   └── EntityConfig.cs
+│   │   ├── TurnManagement/
+│   │   │   ├── TurnPhase.cs
+│   │   │   └── TurnManager.cs
 │   │   ├── Combat/             # Future
-│   │   ├── TurnManagement/     # Future
 │   │   ├── AI/                 # Future
-│   │   ├── Commands/           # Future
-│   │   └── Config/             # Future
+│   │   └── Commands/           # Future
 │   │
 │   ├── Unity/                   # Unity-specific
 │   │   ├── SubGame.Unity.asmdef
@@ -365,7 +560,10 @@ Assets/
     ├── EditMode/
     │   ├── SubGame.Tests.EditMode.asmdef
     │   ├── GridCoordinateTests.cs
-    │   └── GridSystemTests.cs
+    │   ├── GridSystemTests.cs
+    │   ├── EntityTests.cs
+    │   ├── EntityManagerTests.cs
+    │   └── TurnManagerTests.cs
     └── PlayMode/
         └── SubGame.Tests.PlayMode.asmdef
 ```
@@ -387,17 +585,16 @@ See `docs/STANDARDS.md` for complete coding standards.
 
 ## Version History
 
-- **v1.0** (2025-11-21): Initial architecture document (Phase 1)
+- **v1.0** (2025-11-21): Initial architecture document (Phase 1 - Grid System)
+- **v1.1** (2025-11-21): Added Entity System and Turn Management (Phase 2)
 
 ---
 
 ## Future Additions
 
 This document will be updated as new systems are implemented:
-- Phase 2: Entity system architecture
 - Phase 3: Command pattern details
-- Phase 4: Event system architecture
-- Phase 5: Combat system design
-- Phase 6: AI architecture
-- Phase 7: Camera and input system
-- Phase 8: Final system integration
+- Phase 4: Combat system design
+- Phase 5: AI architecture
+- Phase 6: Camera and input system
+- Phase 7: Final system integration
