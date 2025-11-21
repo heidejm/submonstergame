@@ -1,0 +1,17 @@
+{
+    "name": "SubGame.GameManagement",
+    "rootNamespace": "SubGame.GameManagement",
+    "references": [
+        "SubGame.Core",
+        "SubGame.Unity"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

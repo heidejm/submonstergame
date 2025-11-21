@@ -1,2 +1,5 @@
 ﻿<Solution>
+  <Project Path="SubGame.Core.csproj" />
+  <Project Path="SubGame.Tests.EditMode.csproj" />
+  <Project Path="SubGame.Unity.csproj" />
 </Solution>
