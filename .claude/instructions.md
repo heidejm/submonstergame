@@ -2,18 +2,18 @@
 
 ## Primary Directive
 
-**ALWAYS read and follow the standards defined in `STANDARDS.md` at the project root before performing any development work.**
+**ALWAYS read and follow the standards defined in `docs/STANDARDS.md` before performing any development work.**
 
 ## Workflow
 
-1. At the beginning of each work session or major task, read `STANDARDS.md`
+1. At the beginning of each work session or major task, read `docs/STANDARDS.md`
 2. Apply all architectural, security, and code quality principles defined therein
 3. When in doubt about implementation approach, refer back to the standards
 4. If standards conflict with user requests, discuss with the user before proceeding
 
 ## Enforcement
 
-The standards in `STANDARDS.md` are not suggestions - they are requirements for this project. Violations should be caught by:
+The standards in `docs/STANDARDS.md` are not suggestions - they are requirements for this project. Violations should be caught by:
 - Automated linting and formatting tools
 - Type checking systems
 - Code review processes
@@ -27,4 +27,4 @@ The standards in `STANDARDS.md` are not suggestions - they are requirements for 
 
 ## Updates
 
-If standards need to be modified or expanded, those changes should be made to `STANDARDS.md` and will automatically apply to future work.
+If standards need to be modified or expanded, those changes should be made to `docs/STANDARDS.md` and will automatically apply to future work.

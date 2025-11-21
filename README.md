@@ -29,11 +29,11 @@ This project follows strict development standards to ensure:
 - **Security** - proper input validation and secure practices
 - **Maintainability** - comprehensive documentation and testing
 
-See [STANDARDS.md](STANDARDS.md) for complete development guidelines.
+See [STANDARDS.md](docs/STANDARDS.md) for complete development guidelines.
 
 ## Documentation
 
-- **[STANDARDS.md](STANDARDS.md)** - Development standards and code quality requirements
+- **[STANDARDS.md](docs/STANDARDS.md)** - Development standards and code quality requirements
 - **[Implementation Plan](docs/planning/IMPLEMENTATION_PLAN.md)** - Detailed roadmap and architecture
 - **Architecture Guide** - Coming in Phase 1
 - **Changelog** - Coming with first release

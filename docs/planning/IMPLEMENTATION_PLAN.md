@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-This plan breaks down the minimal viable prototype into 8 sequential phases. Each phase delivers a testable vertical slice while maintaining strict adherence to STANDARDS.md principles. The architecture prioritizes separation of concerns, multiplayer-readiness, and maintainability from day one.
+This plan breaks down the minimal viable prototype into 8 sequential phases. Each phase delivers a testable vertical slice while maintaining strict adherence to docs/STANDARDS.md principles. The architecture prioritizes separation of concerns, multiplayer-readiness, and maintainability from day one.
 
 ---
 
@@ -141,11 +141,15 @@ SubmarineMonsterGame/
 ├── .git/
 ├── .gitignore
 ├── .editorconfig
-├── STANDARDS.md              # Development standards
-├── IMPLEMENTATION_PLAN.md    # This document
-├── ARCHITECTURE.md           # Detailed system design (create in Phase 1)
 ├── README.md                 # Setup and usage
 ├── CHANGELOG.md              # Version history
+├── .claude/
+│   └── instructions.md
+├── docs/
+│   ├── STANDARDS.md          # Development standards
+│   ├── ARCHITECTURE.md       # Detailed system design (create in Phase 1)
+│   └── planning/
+│       └── IMPLEMENTATION_PLAN.md    # This document
 ├── Assets/
 │   ├── _Project/             # All custom content
 │   │   ├── Core/             # Pure C# game logic (NO Unity dependencies)
@@ -1052,7 +1056,7 @@ dotnet format --verify-no-changes
 ### Risk 4: Unity/C# Separation is Too Complex
 
 **Mitigation**:
-- Follow STANDARDS.md strictly
+- Follow docs/STANDARDS.md strictly
 - Assembly definitions enforce separation
 - Regular code reviews
 
@@ -1131,7 +1135,7 @@ dotnet format --verify-no-changes
 - [x] Camera controls are intuitive
 - [x] AI provides appropriate challenge
 - [x] No critical bugs
-- [x] Code adheres to STANDARDS.md
+- [x] Code adheres to docs/STANDARDS.md
 - [x] ~80% test coverage on core systems
 - [x] Documentation is complete and accurate
 - [x] Ready to demonstrate and gather feedback
@@ -1142,9 +1146,9 @@ dotnet format --verify-no-changes
 
 ### Key File Locations
 
-- **Standards**: `STANDARDS.md`
-- **Architecture**: `ARCHITECTURE.md`
-- **Plan**: `IMPLEMENTATION_PLAN.md` (this document)
+- **Standards**: `docs/STANDARDS.md`
+- **Architecture**: `docs/ARCHITECTURE.md`
+- **Plan**: `docs/planning/IMPLEMENTATION_PLAN.md` (this document)
 - **Changelog**: `CHANGELOG.md`
 - **Core Logic**: `Assets/_Project/Core/`
 - **Unity Code**: `Assets/_Project/Unity/`
