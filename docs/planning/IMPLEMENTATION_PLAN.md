@@ -13,7 +13,7 @@
 | 0 | Development Environment Setup | ✅ Complete | Unity 6 + VS Code configured |
 | 1 | Foundation & Grid System | ✅ Complete | 3D grid logic + visualization |
 | 2 | Entity System & Turn Manager | ✅ Complete | Submarines, monsters, turn order |
-| 3 | Command Pattern & Movement | ⬜ Not Started | Movement with pathfinding |
+| 3 | Command Pattern & Movement | 🔄 In Progress | Movement with pathfinding |
 | 4 | Unity Presentation Layer | ⬜ Not Started | Visual representation + input |
 | 5 | Combat System | ⬜ Not Started | Attacks, damage, health |
 | 6 | Monster AI | ⬜ Not Started | Autonomous enemy behavior |

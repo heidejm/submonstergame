@@ -1,6 +1,6 @@
 # Architecture Guide - Submarine Monster Tactical Game
 
-**Version**: 1.1
+**Version**: 1.2
 **Last Updated**: 2025-11-21
 
 ---
@@ -348,6 +348,117 @@ StartGame()
 
 ---
 
+## Command System Design
+
+### ICommand Interface
+
+All game actions are encapsulated as command objects for validation, execution, and networking.
+
+```
+ICommand
+├── Validate(state) → CommandResult
+└── Execute(state) → void
+```
+
+### CommandResult
+
+Value type representing command outcomes.
+
+```
+CommandResult
+├── Success: bool
+├── ErrorMessage: string (null if success)
+├── Ok() → CommandResult (static factory)
+└── Fail(message) → CommandResult (static factory)
+```
+
+### MoveCommand
+
+Moves an entity to a new position with full validation.
+
+**Validation Checks**:
+1. Game has started
+2. Entity exists and is alive
+3. It's the entity's turn
+4. Target is within grid bounds
+5. Target is not occupied
+6. Target is reachable within movement range (via pathfinding)
+
+### EndTurnCommand
+
+Ends the current entity's turn and advances to next entity/phase.
+
+**Validation Checks**:
+1. Game has started
+2. Active entity matches command's entity
+
+---
+
+## GameState Facade
+
+Central facade aggregating all core subsystems.
+
+```
+GameState : IGameState
+├── Grid: IGridSystem
+├── EntityCount: int
+├── CurrentTurn: int
+├── CurrentPhase: TurnPhase
+├── ActiveEntity: IEntity
+├── HasStarted: bool
+├── IsPlayerPhase: bool
+│
+├── ExecuteCommand(cmd) → CommandResult
+├── AddEntity(entity) / RemoveEntity(id)
+├── GetEntity(id) / GetEntityAtPosition(pos)
+├── GetSubmarines() / GetMonsters() / GetLivingEntities()
+├── MoveEntity(entity, newPos)
+├── StartGame() / AdvancePhase() / EndCurrentEntityTurn() / Reset()
+├── FindPath(start, end) → IReadOnlyList<GridCoordinate>
+├── GetReachablePositions(entity) → IReadOnlyCollection<GridCoordinate>
+│
+├── OnEntityMoved: event
+├── OnTurnStarted / OnTurnEnded: event
+├── OnPhaseChanged: event
+├── OnActiveEntityChanged: event
+├── OnEntityAdded / OnEntityRemoved: event
+└── OnCommandExecuted: event
+```
+
+**Key Features**:
+- Single entry point for all game operations
+- Validates commands before execution
+- Aggregates events from subsystems into unified event stream
+- Provides pathfinding and reachability queries
+
+---
+
+## Pathfinding System
+
+### Pathfinder
+
+BFS-based pathfinding for 3D grids.
+
+```
+Pathfinder
+├── FindPath(start, end) → IReadOnlyList<GridCoordinate>
+├── GetReachablePositions(start, range) → IReadOnlyCollection<GridCoordinate>
+├── PathExists(start, end) → bool
+└── GetPathDistance(start, end) → int
+```
+
+**Algorithm**: Breadth-First Search (BFS)
+- Guarantees shortest path in unweighted grids
+- Respects grid bounds and occupied cells
+- O(V + E) complexity where V = cells, E = edges
+
+**Movement Rules**:
+- 6-directional movement (±X, ±Y, ±Z)
+- Cannot move through occupied cells
+- Cannot move outside grid bounds
+
+---
+
 ## Unity Presentation Layer
 
 ### GridVisualizer
@@ -430,20 +541,22 @@ EntityView.UpdatePosition() (Unity)
 - Base class defines common behavior
 - Subclasses (Submarine, Monster) provide specific details
 
-### Patterns Planned for Future Phases
+**Command Pattern (ICommand, MoveCommand, EndTurnCommand)**:
+- All game actions encapsulated as command objects
+- Commands validate before execution
+- Enables undo/redo, replay, and networking
+- Commands are serializable for network transmission
 
-**Command Pattern** (Phase 3):
-- All game actions as command objects
-- Enables undo, replay, networking
-- `MoveCommand`, `AttackCommand`, etc.
+**Facade Pattern (GameState)**:
+- Single entry point to all Core subsystems
+- Aggregates Grid, EntityManager, TurnManager, Pathfinder
+- Provides unified event system for presentation layer
+
+### Patterns Planned for Future Phases
 
 **State Pattern** (Future, if needed):
 - Turn phases could become state objects
 - Currently handled with enum + switch
-
-**Facade Pattern** (Phase 3):
-- `GameState` as single entry point to Core
-- Hides subsystem complexity
 
 ---
 
@@ -521,10 +634,12 @@ Assets/
 ├── _Project/
 │   ├── Core/                    # Pure C# (NO UNITY)
 │   │   ├── SubGame.Core.asmdef
+│   │   ├── GameState.cs            # Main facade
 │   │   ├── Grid/
 │   │   │   ├── GridCoordinate.cs
 │   │   │   ├── IGridSystem.cs
-│   │   │   └── GridSystem.cs
+│   │   │   ├── GridSystem.cs
+│   │   │   └── Pathfinder.cs
 │   │   ├── Entities/
 │   │   │   ├── IEntity.cs
 │   │   │   ├── Entity.cs
@@ -536,9 +651,14 @@ Assets/
 │   │   ├── TurnManagement/
 │   │   │   ├── TurnPhase.cs
 │   │   │   └── TurnManager.cs
+│   │   ├── Commands/
+│   │   │   ├── ICommand.cs
+│   │   │   ├── IGameState.cs
+│   │   │   ├── CommandResult.cs
+│   │   │   ├── MoveCommand.cs
+│   │   │   └── EndTurnCommand.cs
 │   │   ├── Combat/             # Future
-│   │   ├── AI/                 # Future
-│   │   └── Commands/           # Future
+│   │   └── AI/                 # Future
 │   │
 │   ├── Unity/                   # Unity-specific
 │   │   ├── SubGame.Unity.asmdef
@@ -563,7 +683,10 @@ Assets/
     │   ├── GridSystemTests.cs
     │   ├── EntityTests.cs
     │   ├── EntityManagerTests.cs
-    │   └── TurnManagerTests.cs
+    │   ├── TurnManagerTests.cs
+    │   ├── PathfinderTests.cs
+    │   ├── CommandTests.cs
+    │   └── GameStateTests.cs
     └── PlayMode/
         └── SubGame.Tests.PlayMode.asmdef
 ```
@@ -587,14 +710,15 @@ See `docs/STANDARDS.md` for complete coding standards.
 
 - **v1.0** (2025-11-21): Initial architecture document (Phase 1 - Grid System)
 - **v1.1** (2025-11-21): Added Entity System and Turn Management (Phase 2)
+- **v1.2** (2025-11-21): Added Command Pattern, GameState Facade, and Pathfinding (Phase 3)
 
 ---
 
 ## Future Additions
 
 This document will be updated as new systems are implemented:
-- Phase 3: Command pattern details
-- Phase 4: Combat system design
-- Phase 5: AI architecture
-- Phase 6: Camera and input system
-- Phase 7: Final system integration
+- Phase 4: Unity Presentation Layer (entity views, input handling)
+- Phase 5: Combat system design
+- Phase 6: AI architecture
+- Phase 7: Camera and input system
+- Phase 8: Final system integration
