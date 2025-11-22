@@ -197,6 +197,12 @@ namespace SubGame.Core
             return _entityManager.IsValidMovePosition(position);
         }
 
+        /// <inheritdoc/>
+        public bool CanEntityMoveTo(IEntity entity, GridCoordinate position)
+        {
+            return _entityManager.CanEntityMoveTo(entity, position);
+        }
+
         #endregion
 
         #region Movement
@@ -250,6 +256,7 @@ namespace SubGame.Core
 
         /// <summary>
         /// Gets entities within attack range of the active entity.
+        /// Accounts for multi-tile entities by checking distance to nearest occupied cell.
         /// </summary>
         /// <returns>Collection of attackable entities</returns>
         public IEnumerable<IEntity> GetAttackableTargets()
@@ -266,12 +273,36 @@ namespace SubGame.Core
                     continue;
                 }
 
-                int distance = GridCoordinate.Distance(ActiveEntity.Position, entity.Position);
-                if (distance <= ActiveEntity.AttackRange)
+                // Calculate minimum distance between any cell of attacker and any cell of target
+                int minDistance = GetDistanceBetweenEntities(ActiveEntity, entity);
+                if (minDistance <= ActiveEntity.AttackRange)
                 {
                     yield return entity;
                 }
             }
+        }
+
+        /// <inheritdoc/>
+        public int GetDistanceBetweenEntities(IEntity entityA, IEntity entityB)
+        {
+            int minDistance = int.MaxValue;
+
+            foreach (var cellA in entityA.GetOccupiedCells())
+            {
+                foreach (var cellB in entityB.GetOccupiedCells())
+                {
+                    int distance = GridCoordinate.Distance(cellA, cellB);
+                    if (distance < minDistance)
+                    {
+                        minDistance = distance;
+                        // Early exit if adjacent
+                        if (minDistance <= 1)
+                            return minDistance;
+                    }
+                }
+            }
+
+            return minDistance;
         }
 
         #endregion
@@ -317,6 +348,19 @@ namespace SubGame.Core
             return _pathfinder.FindPath(start, end);
         }
 
+        /// <summary>
+        /// Finds a path for a specific entity, accounting for its size.
+        /// </summary>
+        public IReadOnlyList<GridCoordinate> FindPathForEntity(IEntity entity, GridCoordinate end)
+        {
+            if (entity == null)
+            {
+                return new List<GridCoordinate>();
+            }
+
+            return _pathfinder.FindPath(entity.Position, end, entity.Size);
+        }
+
         /// <inheritdoc/>
         public IReadOnlyCollection<GridCoordinate> GetReachablePositions(IEntity entity)
         {
@@ -325,7 +369,7 @@ namespace SubGame.Core
                 return new HashSet<GridCoordinate>();
             }
 
-            return _pathfinder.GetReachablePositions(entity.Position, entity.MovementRange);
+            return _pathfinder.GetReachablePositions(entity.Position, entity.MovementRange, entity.Size);
         }
 
         /// <summary>

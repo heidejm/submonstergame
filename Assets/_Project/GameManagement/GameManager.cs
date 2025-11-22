@@ -21,17 +21,21 @@ namespace SubGame.GameManagement
         [SerializeField] private GameObject _monsterPrefab;
 
         [Header("Grid Settings")]
-        [SerializeField] private int _gridWidth = 10;
-        [SerializeField] private int _gridHeight = 5;
-        [SerializeField] private int _gridDepth = 10;
-        [SerializeField] private float _cellSize = 1f;
+        [SerializeField] private int _gridWidth = 15;
+        [SerializeField] private int _gridHeight = 15;
+        [SerializeField] private int _gridDepth = 15;
+        [SerializeField] private float _cellSize = 2f; // Larger cells for better visibility
 
         [Header("References")]
         [SerializeField] private GridVisualizer _gridVisualizer;
+        [SerializeField] private RuntimeGridRenderer _runtimeGridRenderer;
 
         private GameState _gameState;
         private Dictionary<Guid, EntityView> _entityViews = new Dictionary<Guid, EntityView>();
         private EntityView _selectedEntityView;
+
+        // Store the path for the current move (calculated before move executes)
+        private IReadOnlyList<GridCoordinate> _pendingMovePath;
 
         #region Events
 
@@ -104,10 +108,15 @@ namespace SubGame.GameManagement
             _gameState = new GameState(_gridWidth, _gridHeight, _gridDepth);
             SubscribeToEvents();
 
-            // Update grid visualizer if available
+            // Update grid visualizers if available
             if (_gridVisualizer != null)
             {
                 _gridVisualizer.SetDimensions(_gridWidth, _gridHeight, _gridDepth);
+            }
+
+            if (_runtimeGridRenderer != null)
+            {
+                _runtimeGridRenderer.SetDimensions(_gridWidth, _gridHeight, _gridDepth, _cellSize);
             }
 
             OnGameInitialized?.Invoke();
@@ -143,12 +152,12 @@ namespace SubGame.GameManagement
         /// </summary>
         private void SetupTestEntities()
         {
-            // Add a submarine
-            var submarine = new Submarine(new GridCoordinate(2, 0, 2), "Player Sub");
+            // Add a submarine - positioned in lower area of grid
+            var submarine = new Submarine(new GridCoordinate(5, 2, 5), "Player Sub");
             _gameState.AddEntity(submarine);
 
-            // Add a monster
-            var monster = new Monster(new GridCoordinate(7, 0, 7), "Sea Beast");
+            // Add a monster - positioned further away for tactical distance
+            var monster = new Monster(new GridCoordinate(10, 2, 10), "Sea Beast");
             _gameState.AddEntity(monster);
         }
 
@@ -194,7 +203,8 @@ namespace SubGame.GameManagement
             EntityView view = instance.GetComponent<EntityView>();
             if (view != null)
             {
-                view.Initialize(entity.Id, entity.Position, _cellSize);
+                // Pass entity size for proper scaling of multi-tile entities
+                view.Initialize(entity.Id, entity.Position, _cellSize, entity.Size);
                 view.UpdateHealth(entity.Health, entity.MaxHealth);
                 _entityViews[entity.Id] = view;
 
@@ -229,7 +239,21 @@ namespace SubGame.GameManagement
         {
             if (_entityViews.TryGetValue(entity.Id, out EntityView view))
             {
-                view.UpdatePosition(newPos);
+                // Use the pre-calculated path (calculated before move executed)
+                var path = _pendingMovePath;
+                _pendingMovePath = null; // Clear after use
+
+                if (path != null && path.Count > 1)
+                {
+                    Debug.Log($"Moving along path with {path.Count} waypoints");
+                    view.MoveAlongPath(path);
+                }
+                else
+                {
+                    // Fallback to direct movement if no path found
+                    Debug.Log("No path found, using direct movement");
+                    view.UpdatePosition(newPos);
+                }
             }
         }
 
@@ -295,12 +319,17 @@ namespace SubGame.GameManagement
                 return false;
             }
 
+            // Calculate path BEFORE executing the move (so destination isn't occupied yet)
+            // Use entity-aware pathfinding for multi-tile entities
+            _pendingMovePath = _gameState.FindPathForEntity(_gameState.ActiveEntity, targetPosition);
+
             var command = new MoveCommand(_gameState.ActiveEntity, targetPosition);
             var result = _gameState.ExecuteCommand(command);
 
             if (!result.Success)
             {
                 Debug.Log($"Move failed: {result.ErrorMessage}");
+                _pendingMovePath = null;
             }
 
             return result.Success;
@@ -340,6 +369,22 @@ namespace SubGame.GameManagement
             }
 
             return _gameState.GetReachablePositions(_gameState.ActiveEntity);
+        }
+
+        /// <summary>
+        /// Gets the path from the active entity to a target position.
+        /// Uses entity-aware pathfinding for multi-tile entities.
+        /// </summary>
+        /// <param name="targetPosition">Target grid position</param>
+        /// <returns>List of coordinates forming the path, or empty if no path exists</returns>
+        public IReadOnlyList<GridCoordinate> GetPathTo(GridCoordinate targetPosition)
+        {
+            if (_gameState.ActiveEntity == null)
+            {
+                return new List<GridCoordinate>();
+            }
+
+            return _gameState.FindPathForEntity(_gameState.ActiveEntity, targetPosition);
         }
 
         /// <summary>

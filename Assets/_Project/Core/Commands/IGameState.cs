@@ -50,8 +50,18 @@ namespace SubGame.Core.Commands
 
         /// <summary>
         /// Checks if a position is valid for movement (in bounds and unoccupied).
+        /// Only checks single cell - use CanEntityMoveTo for multi-tile entities.
         /// </summary>
         bool IsValidMovePosition(GridCoordinate position);
+
+        /// <summary>
+        /// Checks if an entity can move to a position (all cells must be valid).
+        /// Accounts for entity size and allows overlap with entity's current position.
+        /// </summary>
+        /// <param name="entity">The entity to check</param>
+        /// <param name="position">Target anchor position</param>
+        /// <returns>True if the entity can fit at the position</returns>
+        bool CanEntityMoveTo(IEntity entity, GridCoordinate position);
 
         #endregion
 
@@ -127,6 +137,12 @@ namespace SubGame.Core.Commands
         /// <param name="entity">The entity to check movement for</param>
         /// <returns>Set of reachable positions</returns>
         IReadOnlyCollection<GridCoordinate> GetReachablePositions(IEntity entity);
+
+        /// <summary>
+        /// Calculates the minimum distance between two entities, accounting for their sizes.
+        /// Returns the shortest Manhattan distance between any cell of entity A and any cell of entity B.
+        /// </summary>
+        int GetDistanceBetweenEntities(IEntity entityA, IEntity entityB);
 
         #endregion
     }

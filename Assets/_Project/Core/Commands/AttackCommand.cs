@@ -91,8 +91,8 @@ namespace SubGame.Core.Commands
                 return CommandResult.Fail("Cannot attack self");
             }
 
-            // Check target is within attack range
-            int distance = GridCoordinate.Distance(attacker.Position, target.Position);
+            // Check target is within attack range (accounts for multi-tile entity sizes)
+            int distance = state.GetDistanceBetweenEntities(attacker, target);
             if (distance > attacker.AttackRange)
             {
                 return CommandResult.Fail($"Target is out of attack range (distance: {distance}, range: {attacker.AttackRange})");

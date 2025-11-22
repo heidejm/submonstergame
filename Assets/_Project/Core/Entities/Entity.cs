@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using SubGame.Core.Grid;
 
 namespace SubGame.Core.Entities
@@ -43,6 +44,9 @@ namespace SubGame.Core.Entities
         public abstract EntityType EntityType { get; }
 
         /// <inheritdoc/>
+        public EntitySize Size { get; }
+
+        /// <inheritdoc/>
         public event Action<IEntity, int> OnDamageTaken;
 
         /// <inheritdoc/>
@@ -61,6 +65,7 @@ namespace SubGame.Core.Entities
         /// <param name="movementRange">Movement range in grid cells</param>
         /// <param name="attackRange">Attack range in grid cells</param>
         /// <param name="attackDamage">Base attack damage</param>
+        /// <param name="size">Size of entity in grid cells (defaults to 1x1x1)</param>
         protected Entity(
             Guid id,
             string name,
@@ -68,7 +73,8 @@ namespace SubGame.Core.Entities
             int maxHealth,
             int movementRange,
             int attackRange,
-            int attackDamage)
+            int attackDamage,
+            EntitySize size = default)
         {
             if (string.IsNullOrWhiteSpace(name))
                 throw new ArgumentException("Name cannot be null or empty", nameof(name));
@@ -89,6 +95,19 @@ namespace SubGame.Core.Entities
             MovementRange = movementRange;
             AttackRange = attackRange;
             AttackDamage = attackDamage;
+            Size = size.TotalCells > 0 ? size : EntitySize.One;
+        }
+
+        /// <inheritdoc/>
+        public IEnumerable<GridCoordinate> GetOccupiedCells()
+        {
+            return Size.GetOccupiedCells(_position);
+        }
+
+        /// <inheritdoc/>
+        public IEnumerable<GridCoordinate> GetOccupiedCellsAt(GridCoordinate position)
+        {
+            return Size.GetOccupiedCells(position);
         }
 
         /// <inheritdoc/>

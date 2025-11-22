@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using SubGame.Core.Grid;
 
 namespace SubGame.Core.Entities
@@ -58,6 +59,24 @@ namespace SubGame.Core.Entities
         /// The type of entity (for distinguishing submarines from monsters, etc.).
         /// </summary>
         EntityType EntityType { get; }
+
+        /// <summary>
+        /// The size of this entity in grid cells.
+        /// </summary>
+        EntitySize Size { get; }
+
+        /// <summary>
+        /// Gets all grid coordinates currently occupied by this entity.
+        /// </summary>
+        /// <returns>All coordinates the entity occupies</returns>
+        IEnumerable<GridCoordinate> GetOccupiedCells();
+
+        /// <summary>
+        /// Gets all grid coordinates this entity would occupy at a given position.
+        /// </summary>
+        /// <param name="position">The anchor position to check</param>
+        /// <returns>All coordinates the entity would occupy</returns>
+        IEnumerable<GridCoordinate> GetOccupiedCellsAt(GridCoordinate position);
 
         /// <summary>
         /// Applies damage to this entity, reducing health.

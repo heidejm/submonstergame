@@ -1,10 +1,13 @@
 using System.Collections.Generic;
+using System.Linq;
+using SubGame.Core.Entities;
 
 namespace SubGame.Core.Grid
 {
     /// <summary>
     /// Provides pathfinding functionality for 3D grids using BFS.
     /// BFS guarantees shortest path in unweighted grids.
+    /// Supports multi-tile entities by checking clearance for all occupied cells.
     /// </summary>
     public class Pathfinder
     {
@@ -20,13 +23,49 @@ namespace SubGame.Core.Grid
         }
 
         /// <summary>
+        /// Checks if an entity of the given size can occupy the position.
+        /// All cells must be valid and unoccupied.
+        /// </summary>
+        /// <param name="position">Anchor position to check</param>
+        /// <param name="size">Size of the entity</param>
+        /// <param name="currentPosition">Current position (cells here are OK to overlap)</param>
+        /// <returns>True if all cells are clear</returns>
+        private bool CanOccupy(GridCoordinate position, EntitySize size, GridCoordinate? currentPosition = null)
+        {
+            foreach (var cell in size.GetOccupiedCells(position))
+            {
+                if (!_gridSystem.IsValidCoordinate(cell))
+                    return false;
+
+                if (_gridSystem.IsOccupied(cell))
+                {
+                    // Allow overlap with current position (entity's own cells)
+                    if (currentPosition.HasValue)
+                    {
+                        bool isOwnCell = size.GetOccupiedCells(currentPosition.Value).Any(c => c.Equals(cell));
+                        if (!isOwnCell)
+                            return false;
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
         /// Finds the shortest path from start to end using BFS.
         /// </summary>
         /// <param name="start">Starting position</param>
         /// <param name="end">Target position</param>
+        /// <param name="entitySize">Size of the entity (for multi-tile clearance checking)</param>
         /// <returns>List of coordinates forming the path (including start and end), or empty if no path exists</returns>
-        public IReadOnlyList<GridCoordinate> FindPath(GridCoordinate start, GridCoordinate end)
+        public IReadOnlyList<GridCoordinate> FindPath(GridCoordinate start, GridCoordinate end, EntitySize entitySize = default)
         {
+            var size = entitySize.TotalCells > 0 ? entitySize : EntitySize.One;
+
             // If start or end is invalid, no path exists
             if (!_gridSystem.IsValidCoordinate(start) || !_gridSystem.IsValidCoordinate(end))
             {
@@ -39,8 +78,8 @@ namespace SubGame.Core.Grid
                 return new List<GridCoordinate> { start };
             }
 
-            // If end is occupied, no path exists (can't move there)
-            if (_gridSystem.IsOccupied(end))
+            // If end position can't fit the entity, no path exists
+            if (!CanOccupy(end, size, start))
             {
                 return new List<GridCoordinate>();
             }
@@ -71,8 +110,8 @@ namespace SubGame.Core.Grid
                         continue;
                     }
 
-                    // Skip if occupied (unless it's the destination)
-                    if (_gridSystem.IsOccupied(neighbor) && !neighbor.Equals(end))
+                    // Check if entity can fit at this position
+                    if (!CanOccupy(neighbor, size, start))
                     {
                         continue;
                     }
@@ -93,9 +132,11 @@ namespace SubGame.Core.Grid
         /// </summary>
         /// <param name="start">Starting position</param>
         /// <param name="range">Maximum movement range</param>
+        /// <param name="entitySize">Size of the entity (for multi-tile clearance checking)</param>
         /// <returns>Set of all reachable positions (excluding start)</returns>
-        public IReadOnlyCollection<GridCoordinate> GetReachablePositions(GridCoordinate start, int range)
+        public IReadOnlyCollection<GridCoordinate> GetReachablePositions(GridCoordinate start, int range, EntitySize entitySize = default)
         {
+            var size = entitySize.TotalCells > 0 ? entitySize : EntitySize.One;
             var reachable = new HashSet<GridCoordinate>();
 
             if (range <= 0 || !_gridSystem.IsValidCoordinate(start))
@@ -114,8 +155,8 @@ namespace SubGame.Core.Grid
             {
                 var (current, distance) = queue.Dequeue();
 
-                // Add to reachable if not the start and not occupied
-                if (!current.Equals(start) && !_gridSystem.IsOccupied(current))
+                // Add to reachable if not the start and entity can fit here
+                if (!current.Equals(start) && CanOccupy(current, size, start))
                 {
                     reachable.Add(current);
                 }
@@ -133,8 +174,8 @@ namespace SubGame.Core.Grid
                         continue;
                     }
 
-                    // Can move through empty cells
-                    if (!_gridSystem.IsOccupied(neighbor))
+                    // Can move through cells where entity fits
+                    if (CanOccupy(neighbor, size, start))
                     {
                         visited.Add(neighbor);
                         queue.Enqueue((neighbor, distance + 1));

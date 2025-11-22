@@ -16,12 +16,12 @@ namespace SubGame.GameManagement.Input
 
         [Header("Zoom Limits")]
         [SerializeField] private float _minZoom = 5f;
-        [SerializeField] private float _maxZoom = 30f;
+        [SerializeField] private float _maxZoom = 60f; // Larger for bigger grid
 
         [Header("Target")]
         [SerializeField] private Transform _target;
 
-        private float _currentZoom = 15f;
+        private float _currentZoom = 35f; // Zoomed out more for larger grid
         private float _currentRotation = 45f;
         private Vector3 _targetPosition;
 
@@ -29,9 +29,10 @@ namespace SubGame.GameManagement.Input
         {
             if (_target == null)
             {
-                // Create a target pivot at the center of a 10x10 grid
+                // Create a target pivot at the center of a 15x15 grid with 2 unit cells
+                // Grid spans 0-30 units, so center is at 15
                 GameObject pivot = new GameObject("CameraPivot");
-                pivot.transform.position = new Vector3(5f, 0f, 5f);
+                pivot.transform.position = new Vector3(15f, 5f, 15f); // Centered, slightly elevated
                 _target = pivot.transform;
             }
 

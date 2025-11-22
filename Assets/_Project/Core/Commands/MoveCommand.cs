@@ -85,10 +85,10 @@ namespace SubGame.Core.Commands
                 return CommandResult.Fail("Entity is already at target position");
             }
 
-            // Check target is not occupied
-            if (!state.IsValidMovePosition(_targetPosition))
+            // Check target can fit the entity (all cells valid and unoccupied, except entity's own cells)
+            if (!state.CanEntityMoveTo(entity, _targetPosition))
             {
-                return CommandResult.Fail("Target position is occupied");
+                return CommandResult.Fail("Target position cannot fit the entity");
             }
 
             // Check target is within movement range (using pathfinding)

@@ -1,3 +1,5 @@
+using SubGame.Core.Entities;
+
 namespace SubGame.Core.Config
 {
     /// <summary>
@@ -32,6 +34,11 @@ namespace SubGame.Core.Config
         public int AttackDamage { get; set; } = 20;
 
         /// <summary>
+        /// Size of the entity in grid cells (width, height, depth).
+        /// </summary>
+        public EntitySize Size { get; set; } = EntitySize.One;
+
+        /// <summary>
         /// Validates the configuration values.
         /// </summary>
         /// <returns>True if valid, false otherwise</returns>
@@ -41,7 +48,8 @@ namespace SubGame.Core.Config
                    MaxHealth > 0 &&
                    MovementRange >= 0 &&
                    AttackRange >= 0 &&
-                   AttackDamage >= 0;
+                   AttackDamage >= 0 &&
+                   Size.TotalCells > 0;
         }
     }
 
@@ -57,7 +65,7 @@ namespace SubGame.Core.Config
         {
             Name = "Submarine";
             MaxHealth = 100;
-            MovementRange = 3;
+            MovementRange = 4;
             AttackRange = 2;
             AttackDamage = 25;
         }
@@ -85,9 +93,10 @@ namespace SubGame.Core.Config
         {
             Name = "Sea Monster";
             MaxHealth = 200;
-            MovementRange = 2;
+            MovementRange = 4;
             AttackRange = 1;
             AttackDamage = 40;
+            Size = new EntitySize(2, 2, 2); // Monsters are larger (2x2x2)
         }
 
         /// <summary>

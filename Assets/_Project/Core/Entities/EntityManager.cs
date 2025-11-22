@@ -58,20 +58,29 @@ namespace SubGame.Core.Entities
                 throw new ArgumentException($"Entity with ID {entity.Id} already exists", nameof(entity));
             }
 
-            if (!_gridSystem.IsValidCoordinate(entity.Position))
+            // Check all cells the entity will occupy
+            foreach (var cell in entity.GetOccupiedCells())
             {
-                throw new InvalidOperationException(
-                    $"Entity position {entity.Position} is outside grid bounds");
-            }
+                if (!_gridSystem.IsValidCoordinate(cell))
+                {
+                    throw new InvalidOperationException(
+                        $"Entity cell {cell} is outside grid bounds");
+                }
 
-            if (_gridSystem.IsOccupied(entity.Position))
-            {
-                throw new InvalidOperationException(
-                    $"Position {entity.Position} is already occupied");
+                if (_gridSystem.IsOccupied(cell))
+                {
+                    throw new InvalidOperationException(
+                        $"Position {cell} is already occupied");
+                }
             }
 
             _entities.Add(entity.Id, entity);
-            _gridSystem.SetOccupied(entity.Position);
+
+            // Mark all cells as occupied
+            foreach (var cell in entity.GetOccupiedCells())
+            {
+                _gridSystem.SetOccupied(cell);
+            }
 
             // Subscribe to entity events
             entity.OnDeath += HandleEntityDeath;
@@ -96,7 +105,11 @@ namespace SubGame.Core.Entities
             entity.OnDeath -= HandleEntityDeath;
             entity.OnMoved -= HandleEntityMoved;
 
-            _gridSystem.ClearOccupied(entity.Position);
+            // Clear all occupied cells
+            foreach (var cell in entity.GetOccupiedCells())
+            {
+                _gridSystem.ClearOccupied(cell);
+            }
             _entities.Remove(entityId);
 
             OnEntityRemoved?.Invoke(entity);
@@ -116,12 +129,14 @@ namespace SubGame.Core.Entities
 
         /// <summary>
         /// Gets the entity at a specific grid position.
+        /// Checks all cells occupied by each entity, not just anchor positions.
         /// </summary>
         /// <param name="position">The grid position to check</param>
         /// <returns>The entity at that position, or null if empty</returns>
         public IEntity GetEntityAtPosition(GridCoordinate position)
         {
-            return _entities.Values.FirstOrDefault(e => e.Position.Equals(position));
+            return _entities.Values.FirstOrDefault(e =>
+                e.GetOccupiedCells().Any(cell => cell.Equals(position)));
         }
 
         /// <summary>
@@ -193,6 +208,30 @@ namespace SubGame.Core.Entities
         }
 
         /// <summary>
+        /// Checks if an entity can move to a position (all cells must be valid and unoccupied).
+        /// </summary>
+        /// <param name="entity">The entity trying to move</param>
+        /// <param name="position">The target anchor position</param>
+        /// <returns>True if all cells are valid for the entity</returns>
+        public bool CanEntityMoveTo(IEntity entity, GridCoordinate position)
+        {
+            foreach (var cell in entity.GetOccupiedCellsAt(position))
+            {
+                if (!_gridSystem.IsValidCoordinate(cell))
+                    return false;
+
+                if (_gridSystem.IsOccupied(cell))
+                {
+                    // Check if the occupied cell is part of the entity itself (OK to overlap self)
+                    bool isSelf = entity.GetOccupiedCells().Any(c => c.Equals(cell));
+                    if (!isSelf)
+                        return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
         /// Clears all entities from the manager.
         /// </summary>
         public void Clear()
@@ -209,9 +248,12 @@ namespace SubGame.Core.Entities
         /// </summary>
         private void HandleEntityDeath(IEntity entity)
         {
-            // Clear the occupied position but keep entity in collection
+            // Clear all occupied cells but keep entity in collection
             // This allows the game to reference dead entities if needed
-            _gridSystem.ClearOccupied(entity.Position);
+            foreach (var cell in entity.GetOccupiedCells())
+            {
+                _gridSystem.ClearOccupied(cell);
+            }
         }
 
         /// <summary>
@@ -219,8 +261,17 @@ namespace SubGame.Core.Entities
         /// </summary>
         private void HandleEntityMoved(IEntity entity, GridCoordinate oldPosition, GridCoordinate newPosition)
         {
-            _gridSystem.ClearOccupied(oldPosition);
-            _gridSystem.SetOccupied(newPosition);
+            // Clear old cells
+            foreach (var cell in entity.GetOccupiedCellsAt(oldPosition))
+            {
+                _gridSystem.ClearOccupied(cell);
+            }
+
+            // Set new cells
+            foreach (var cell in entity.GetOccupiedCellsAt(newPosition))
+            {
+                _gridSystem.SetOccupied(cell);
+            }
         }
     }
 }

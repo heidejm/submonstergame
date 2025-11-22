@@ -58,7 +58,8 @@ namespace SubGame.Core.Entities
                 config.MaxHealth,
                 config.MovementRange,
                 config.AttackRange,
-                config.AttackDamage)
+                config.AttackDamage,
+                config.Size)
         {
             if (!config.IsValid())
             {
