@@ -1,7 +1,7 @@
 # Architecture Guide - Submarine Monster Tactical Game
 
-**Version**: 1.3
-**Last Updated**: 2025-11-21
+**Version**: 1.4
+**Last Updated**: 2025-11-22
 
 ---
 
@@ -392,6 +392,22 @@ Ends the current entity's turn and advances to next entity/phase.
 1. Game has started
 2. Active entity matches command's entity
 
+### AttackCommand
+
+Attacks another entity, dealing damage.
+
+**Validation Checks**:
+1. Game has started
+2. Attacker exists and is alive
+3. It's the attacker's turn
+4. Target exists and is alive
+5. Not attacking self
+6. Target is within attack range (Manhattan distance)
+
+**Execution**:
+- Applies attacker's AttackDamage to target's health
+- Target death handled automatically via Entity events
+
 ---
 
 ## GameState Facade
@@ -417,7 +433,13 @@ GameState : IGameState
 ├── FindPath(start, end) → IReadOnlyList<GridCoordinate>
 ├── GetReachablePositions(entity) → IReadOnlyCollection<GridCoordinate>
 │
+├── Combat:
+│   ├── ApplyDamage(target, damage)
+│   ├── TryAttack(target) → bool
+│   └── GetAttackableTargets() → IEnumerable<IEntity>
+│
 ├── OnEntityMoved: event
+├── OnEntityAttacked: event (attacker, target, damage)
 ├── OnTurnStarted / OnTurnEnded: event
 ├── OnPhaseChanged: event
 ├── OnActiveEntityChanged: event
@@ -836,13 +858,13 @@ See `docs/STANDARDS.md` for complete coding standards.
 - **v1.1** (2025-11-21): Added Entity System and Turn Management (Phase 2)
 - **v1.2** (2025-11-21): Added Command Pattern, GameState Facade, and Pathfinding (Phase 3)
 - **v1.3** (2025-11-21): Added Unity Presentation Layer - EntityView, SubmarineView, MonsterView, GameManager, PlayerInputHandler (Phase 4)
+- **v1.4** (2025-11-22): Added Combat System - AttackCommand, damage application, right-click to attack (Phase 5)
 
 ---
 
 ## Future Additions
 
 This document will be updated as new systems are implemented:
-- Phase 5: Combat system design
-- Phase 6: AI architecture
+- Phase 6: AI architecture (monster auto-attack)
 - Phase 7: Camera and input system
 - Phase 8: Final system integration

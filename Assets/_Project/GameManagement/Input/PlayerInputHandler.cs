@@ -74,7 +74,10 @@ namespace SubGame.GameManagement.Input
             // Debug: try raycast without layer mask first
             if (Physics.Raycast(ray, out RaycastHit hit, 1000f))
             {
-                GridCoordinate hoveredCoord = _gameManager.WorldToGridPosition(hit.point);
+                // Force Y to 0 for ground-level gameplay (avoids floating point issues)
+                Vector3 hitPoint = hit.point;
+                hitPoint.y = 0f;
+                GridCoordinate hoveredCoord = _gameManager.WorldToGridPosition(hitPoint);
 
                 // Update hovered cell
                 if (!_hoveredCell.HasValue || !_hoveredCell.Value.Equals(hoveredCoord))
@@ -83,11 +86,18 @@ namespace SubGame.GameManagement.Input
                     OnHoveredCellChanged(hoveredCoord);
                 }
 
-                // Handle click
+                // Handle left click - move
                 if (Mouse.current.leftButton.wasPressedThisFrame)
                 {
-                    Debug.Log($"Clicked at world position: {hit.point}, grid: {hoveredCoord}");
+                    Debug.Log($"Left-click at world position: {hit.point}, grid: {hoveredCoord}");
                     OnCellClicked(hoveredCoord);
+                }
+
+                // Handle right click - attack
+                if (Mouse.current.rightButton.wasPressedThisFrame)
+                {
+                    Debug.Log($"Right-click at world position: {hit.point}, grid: {hoveredCoord}");
+                    OnCellRightClicked(hoveredCoord);
                 }
             }
             else
@@ -121,17 +131,34 @@ namespace SubGame.GameManagement.Input
             // Try to move the active entity to the clicked position
             if (_gameManager.TryMoveActiveEntity(coord))
             {
-                // Move succeeded - refresh movement indicators after movement completes
-                // The indicators will refresh when the active entity changes or turn ends
+                // Move succeeded - refresh movement indicators
+                ShowMovementRange();
+            }
+        }
+
+        private void OnCellRightClicked(GridCoordinate coord)
+        {
+            if (_gameManager == null)
+                return;
+
+            // Try to attack entity at the clicked position
+            if (_gameManager.TryAttackAtPosition(coord))
+            {
+                // Attack succeeded - refresh indicators (attack range may have changed)
+                ShowMovementRange();
             }
         }
 
         private void HandleActiveEntityChanged(IEntity entity)
         {
-            // Refresh movement range display when active entity changes
-            if (_showingMovementRange)
+            // Always show movement range when a new entity becomes active
+            if (entity != null)
             {
                 ShowMovementRange();
+            }
+            else
+            {
+                HideMovementRange();
             }
         }
 
@@ -142,31 +169,81 @@ namespace SubGame.GameManagement.Input
         {
             ClearMovementIndicators();
 
-            if (_gameManager == null || _movementIndicatorPrefab == null)
+            if (_gameManager == null)
                 return;
 
             var reachable = _gameManager.GetReachablePositions();
+            float cellSize = _gameManager.CellSize;
 
             foreach (var coord in reachable)
             {
                 Vector3 worldPos = _gameManager.GridToWorldPosition(coord);
-                // Offset slightly above ground to avoid z-fighting
+                // Position at ground level with slight offset
                 worldPos.y = 0.05f;
 
-                GameObject indicator = Instantiate(_movementIndicatorPrefab, worldPos, Quaternion.identity);
-                indicator.transform.SetParent(transform);
+                GameObject indicator = CreateIndicator(worldPos, cellSize, _validMoveColor);
+                _movementIndicators.Add(indicator);
+            }
 
-                // Set color
-                var renderer = indicator.GetComponent<Renderer>();
-                if (renderer != null)
-                {
-                    renderer.material.color = _validMoveColor;
-                }
+            // Also show attack range indicators (in red/orange) - positioned above entities
+            var attackable = _gameManager.GetAttackableTargets();
+            foreach (var target in attackable)
+            {
+                Vector3 worldPos = _gameManager.GridToWorldPosition(target.Position);
+                worldPos.y = 1.5f; // Above entity heads so it's visible
 
+                GameObject indicator = CreateIndicator(worldPos, cellSize * 0.6f, _invalidMoveColor);
                 _movementIndicators.Add(indicator);
             }
 
             _showingMovementRange = true;
+        }
+
+        private GameObject CreateIndicator(Vector3 position, float size, Color color)
+        {
+            GameObject indicator;
+
+            if (_movementIndicatorPrefab != null)
+            {
+                indicator = Instantiate(_movementIndicatorPrefab, position, Quaternion.identity);
+            }
+            else
+            {
+                // Create a simple quad indicator dynamically
+                indicator = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                indicator.transform.position = position;
+                indicator.transform.rotation = Quaternion.Euler(90f, 0f, 0f); // Flat on ground
+                indicator.transform.localScale = new Vector3(size * 0.8f, size * 0.8f, 1f);
+
+                // Remove collider so it doesn't block raycasts
+                var collider = indicator.GetComponent<Collider>();
+                if (collider != null)
+                {
+                    Destroy(collider);
+                }
+            }
+
+            indicator.transform.SetParent(transform);
+
+            // Set color with transparency
+            var renderer = indicator.GetComponent<Renderer>();
+            if (renderer != null)
+            {
+                // Create a new material with transparency
+                var mat = new Material(Shader.Find("Standard"));
+                mat.SetFloat("_Mode", 3); // Transparent mode
+                mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                mat.SetInt("_ZWrite", 0);
+                mat.DisableKeyword("_ALPHATEST_ON");
+                mat.EnableKeyword("_ALPHABLEND_ON");
+                mat.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+                mat.renderQueue = 3000;
+                mat.color = color;
+                renderer.material = mat;
+            }
+
+            return indicator;
         }
 
         /// <summary>

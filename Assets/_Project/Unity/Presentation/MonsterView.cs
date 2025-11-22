@@ -20,6 +20,7 @@ namespace SubGame.Unity.Presentation
         private Material _material;
         private float _damageFlashTimer;
         private const float DamageFlashDuration = 0.3f;
+        private bool _isDead;
 
         private void Awake()
         {
@@ -64,6 +65,8 @@ namespace SubGame.Unity.Presentation
         /// <inheritdoc/>
         public override void OnDeath()
         {
+            _isDead = true;
+
             // Simple death effect - could be expanded with particles, animation, etc.
             if (_material != null)
             {
@@ -80,16 +83,20 @@ namespace SubGame.Unity.Presentation
         /// <inheritdoc/>
         public override void SetSelected(bool selected)
         {
-            if (_material != null && _damageFlashTimer <= 0)
-            {
-                _material.color = selected ? _activeColor : _normalColor;
-            }
+            if (_isDead || _material == null || _damageFlashTimer > 0)
+                return;
+
+            _material.color = selected ? _activeColor : _normalColor;
         }
 
         /// <inheritdoc/>
         protected override void Update()
         {
             base.Update();
+
+            // Don't update visuals if dead
+            if (_isDead)
+                return;
 
             // Handle damage flash
             if (_damageFlashTimer > 0)
