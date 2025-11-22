@@ -342,6 +342,58 @@ namespace SubGame.GameManagement
             return _gameState.GetReachablePositions(_gameState.ActiveEntity);
         }
 
+        /// <summary>
+        /// Attempts to attack an entity at a position.
+        /// </summary>
+        /// <param name="targetPosition">Position of the target</param>
+        /// <returns>True if attack was executed</returns>
+        public bool TryAttackAtPosition(GridCoordinate targetPosition)
+        {
+            if (_gameState == null)
+            {
+                Debug.LogError("GameState is null!");
+                return false;
+            }
+
+            if (_gameState.ActiveEntity == null)
+            {
+                Debug.Log("No active entity to attack with");
+                return false;
+            }
+
+            var target = _gameState.GetEntityAtPosition(targetPosition);
+            if (target == null)
+            {
+                Debug.Log("No target at position");
+                return false;
+            }
+
+            bool success = _gameState.TryAttack(target);
+            if (!success)
+            {
+                Debug.Log("Attack failed");
+            }
+            else
+            {
+                Debug.Log($"{_gameState.ActiveEntity.Name} attacked {target.Name} for {_gameState.ActiveEntity.AttackDamage} damage!");
+            }
+
+            return success;
+        }
+
+        /// <summary>
+        /// Gets entities that can be attacked by the active entity.
+        /// </summary>
+        public IEnumerable<IEntity> GetAttackableTargets()
+        {
+            if (_gameState == null)
+            {
+                return System.Array.Empty<IEntity>();
+            }
+
+            return _gameState.GetAttackableTargets();
+        }
+
         #endregion
 
         #region Coordinate Conversion

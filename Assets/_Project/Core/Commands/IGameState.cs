@@ -93,6 +93,13 @@ namespace SubGame.Core.Commands
         void MoveEntity(IEntity entity, GridCoordinate newPosition);
 
         /// <summary>
+        /// Applies damage to an entity.
+        /// </summary>
+        /// <param name="target">The entity to damage</param>
+        /// <param name="damage">Amount of damage to apply</param>
+        void ApplyDamage(IEntity target, int damage);
+
+        /// <summary>
         /// Advances to the next phase or entity turn.
         /// </summary>
         void AdvancePhase();

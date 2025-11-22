@@ -211,6 +211,71 @@ namespace SubGame.Core
 
         #endregion
 
+        #region Combat
+
+        /// <summary>
+        /// Event fired when an entity attacks another.
+        /// Parameters: attacker, target, damage dealt
+        /// </summary>
+        public event Action<IEntity, IEntity, int> OnEntityAttacked;
+
+        /// <inheritdoc/>
+        public void ApplyDamage(IEntity target, int damage)
+        {
+            target.TakeDamage(damage);
+        }
+
+        /// <summary>
+        /// Attempts to attack a target entity with the active entity.
+        /// </summary>
+        /// <param name="target">The entity to attack</param>
+        /// <returns>True if attack was executed</returns>
+        public bool TryAttack(IEntity target)
+        {
+            if (ActiveEntity == null || target == null)
+            {
+                return false;
+            }
+
+            var command = new AttackCommand(ActiveEntity, target);
+            var result = ExecuteCommand(command);
+
+            if (result.Success)
+            {
+                OnEntityAttacked?.Invoke(ActiveEntity, target, ActiveEntity.AttackDamage);
+            }
+
+            return result.Success;
+        }
+
+        /// <summary>
+        /// Gets entities within attack range of the active entity.
+        /// </summary>
+        /// <returns>Collection of attackable entities</returns>
+        public IEnumerable<IEntity> GetAttackableTargets()
+        {
+            if (ActiveEntity == null)
+            {
+                yield break;
+            }
+
+            foreach (var entity in GetLivingEntities())
+            {
+                if (entity.Id == ActiveEntity.Id)
+                {
+                    continue;
+                }
+
+                int distance = GridCoordinate.Distance(ActiveEntity.Position, entity.Position);
+                if (distance <= ActiveEntity.AttackRange)
+                {
+                    yield return entity;
+                }
+            }
+        }
+
+        #endregion
+
         #region Turn Management
 
         /// <summary>
