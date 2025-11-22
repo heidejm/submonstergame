@@ -1,6 +1,6 @@
 # Architecture Guide - Submarine Monster Tactical Game
 
-**Version**: 1.2
+**Version**: 1.3
 **Last Updated**: 2025-11-21
 
 ---
@@ -482,11 +482,120 @@ World Position = GridOrigin + (GridCoord * CellSize) + (CellSize / 2)
 Grid Coordinate = Floor((WorldPos - GridOrigin) / CellSize)
 ```
 
+### EntityView (Base Class)
+
+Abstract MonoBehaviour for visual representation of game entities.
+
+```
+EntityView : MonoBehaviour
+├── EntityId: Guid (links to Core entity)
+├── GridPosition: GridCoordinate (current logical position)
+├── CellSize: float (for coordinate conversion)
+│
+├── Initialize(entityId, startPosition, cellSize)
+├── UpdatePosition(newPosition) → smooth animation
+├── UpdateHealth(currentHealth, maxHealth) → abstract
+├── OnDamageTaken(damage) → abstract
+├── OnDeath() → abstract
+├── SetSelected(selected) → virtual
+└── GridToWorldPosition(coord) → Vector3
+```
+
+**Key Features**:
+- Smooth movement animation using Lerp
+- Configurable movement speed
+- Base class for submarine/monster-specific visuals
+
+### SubmarineView & MonsterView
+
+Concrete EntityView implementations with entity-specific visuals.
+
+```
+SubmarineView : EntityView
+├── Material color changes (normal, selected, damaged)
+├── Health bar display (shows when damaged)
+├── Damage flash effect (0.3s white flash)
+└── Death effect (gray color, hide health bar)
+
+MonsterView : EntityView
+├── Similar structure to SubmarineView
+├── Different color scheme (red/orange)
+└── Entity-specific visual effects
+```
+
+### GameManager
+
+Central Unity-side orchestrator bridging Core game state with Unity visuals.
+
+```
+GameManager : MonoBehaviour
+├── Prefabs: submarinePrefab, monsterPrefab
+├── Grid Settings: width, height, depth, cellSize
+├── GridVisualizer reference
+│
+├── GameState: GameState (Core)
+├── EntityViews: Dictionary<Guid, EntityView>
+├── SelectedEntityView: EntityView
+│
+├── Events:
+│   ├── OnGameInitialized
+│   ├── OnTurnStarted(turnNumber)
+│   ├── OnActiveEntityChanged(entity)
+│   └── OnPhaseChanged(phase)
+│
+├── Entity Management:
+│   ├── CreateEntityView(entity) → instantiates prefab
+│   └── DestroyEntityView(entityId)
+│
+├── Command Execution:
+│   ├── TryMoveActiveEntity(targetPosition) → bool
+│   ├── EndCurrentTurn() → bool
+│   └── GetReachablePositions() → IReadOnlyCollection
+│
+└── Coordinate Conversion:
+    ├── GridToWorldPosition(coord) → Vector3
+    └── WorldToGridPosition(worldPos) → GridCoordinate
+```
+
+**Lifecycle**:
+1. Awake: Creates GameState, subscribes to Core events
+2. Start: Sets up test entities, starts game
+3. Runtime: Responds to Core events, updates EntityViews
+4. OnDestroy: Unsubscribes from events
+
+### PlayerInputHandler
+
+Handles player input and converts to game commands.
+
+```
+PlayerInputHandler : MonoBehaviour
+├── References: gameManager, mainCamera
+├── Input Settings: groundLayerMask, endTurnKey (Space)
+├── Visual Feedback: movementIndicatorPrefab, colors
+│
+├── HandleMouseInput()
+│   ├── Raycast from camera to ground
+│   ├── Convert hit point to GridCoordinate
+│   ├── Track hovered cell
+│   └── On click: call GameManager.TryMoveActiveEntity()
+│
+├── HandleKeyboardInput()
+│   └── Space: call GameManager.EndCurrentTurn()
+│
+├── Movement Range Display:
+│   ├── ShowMovementRange() → creates indicator objects
+│   ├── HideMovementRange()
+│   └── ToggleMovementRange()
+│
+└── Events:
+    └── OnActiveEntityChanged → refresh movement range
+```
+
 ---
 
-## Data Flow (Future)
+## Data Flow
 
-When fully implemented, data will flow as follows:
+Data flows through the system as follows:
 
 ```
 Player Input (Unity)
@@ -494,7 +603,11 @@ Player Input (Unity)
        ▼
 PlayerInputHandler (Unity)
        │
-       │ Creates Command
+       │ Calls GameManager methods
+       ▼
+GameManager.TryMoveActiveEntity() (Unity)
+       │
+       │ Creates & executes Command
        ▼
 GameState.ExecuteCommand(cmd) (Core)
        │
@@ -506,16 +619,21 @@ GameState publishes Event (Core)
        ▼
 GameManager receives Event (Unity)
        │
-       │ Updates visuals
+       │ Updates EntityViews
        ▼
 EntityView.UpdatePosition() (Unity)
+       │
+       │ Smooth animation
+       ▼
+Visual Update Complete
 ```
 
 **Key Points**:
-- Unity layer calls Core methods
+- Unity layer calls Core methods via GameManager
 - Core publishes events (Observer pattern)
 - Unity subscribes to events and updates visuals
 - No Unity code in Core, ever
+- EntityViews animate smoothly between grid positions
 
 ---
 
@@ -663,13 +781,19 @@ Assets/
 │   ├── Unity/                   # Unity-specific
 │   │   ├── SubGame.Unity.asmdef
 │   │   ├── Presentation/
-│   │   │   └── GridVisualizer.cs
-│   │   ├── Input/              # Future
+│   │   │   ├── GridVisualizer.cs
+│   │   │   ├── EntityView.cs      # Base class for entity visuals
+│   │   │   ├── SubmarineView.cs   # Submarine-specific visuals
+│   │   │   └── MonsterView.cs     # Monster-specific visuals
+│   │   ├── Input/              # Future (UI-specific input)
 │   │   ├── UI/                 # Future
 │   │   └── Networking/         # Future
 │   │
 │   ├── GameManagement/
-│   │   └── SubGame.GameManagement.asmdef
+│   │   ├── SubGame.GameManagement.asmdef
+│   │   ├── GameManager.cs         # Unity-side orchestrator
+│   │   └── Input/
+│   │       └── PlayerInputHandler.cs  # Game input handling
 │   │
 │   └── Data/
 │       ├── Prefabs/
@@ -711,13 +835,13 @@ See `docs/STANDARDS.md` for complete coding standards.
 - **v1.0** (2025-11-21): Initial architecture document (Phase 1 - Grid System)
 - **v1.1** (2025-11-21): Added Entity System and Turn Management (Phase 2)
 - **v1.2** (2025-11-21): Added Command Pattern, GameState Facade, and Pathfinding (Phase 3)
+- **v1.3** (2025-11-21): Added Unity Presentation Layer - EntityView, SubmarineView, MonsterView, GameManager, PlayerInputHandler (Phase 4)
 
 ---
 
 ## Future Additions
 
 This document will be updated as new systems are implemented:
-- Phase 4: Unity Presentation Layer (entity views, input handling)
 - Phase 5: Combat system design
 - Phase 6: AI architecture
 - Phase 7: Camera and input system

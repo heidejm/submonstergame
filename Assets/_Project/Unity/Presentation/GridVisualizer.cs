@@ -184,6 +184,20 @@ namespace SubGame.Unity.Presentation
         }
 
         /// <summary>
+        /// Sets the grid dimensions at runtime.
+        /// </summary>
+        /// <param name="width">Width of the grid (X axis)</param>
+        /// <param name="height">Height of the grid (Y axis)</param>
+        /// <param name="depth">Depth of the grid (Z axis)</param>
+        public void SetDimensions(int width, int height, int depth)
+        {
+            _width = Mathf.Max(1, width);
+            _height = Mathf.Max(1, height);
+            _depth = Mathf.Max(1, depth);
+            _gridSystem = new GridSystem(_width, _height, _depth);
+        }
+
+        /// <summary>
         /// Highlights a specific cell in the grid.
         /// Call from other scripts to show selected cells.
         /// </summary>
