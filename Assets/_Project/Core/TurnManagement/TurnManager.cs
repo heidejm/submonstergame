@@ -115,21 +115,30 @@ namespace SubGame.Core.TurnManagement
                     {
                         // No more submarines to act, move to enemy phase
                         TransitionToPhase(TurnPhase.EnemyAction);
-                        AdvanceToNextEntity(EntityType.Monster);
+                        if (!AdvanceToNextEntity(EntityType.Monster))
+                        {
+                            // No monsters either, end turn and start new one
+                            TransitionToPhase(TurnPhase.TurnEnd);
+                            EndCurrentTurn();
+                            StartNewTurn(autoAdvanceToPlayerAction: true);
+                        }
                     }
                     break;
 
                 case TurnPhase.EnemyAction:
                     if (!AdvanceToNextEntity(EntityType.Monster))
                     {
-                        // No more monsters to act, end the turn
+                        // No more monsters to act, end the turn and start new one
                         TransitionToPhase(TurnPhase.TurnEnd);
+                        EndCurrentTurn();
+                        StartNewTurn(autoAdvanceToPlayerAction: true);
                     }
                     break;
 
                 case TurnPhase.TurnEnd:
+                    // This case handles manual advancement through TurnEnd if needed
                     EndCurrentTurn();
-                    StartNewTurn();
+                    StartNewTurn(autoAdvanceToPlayerAction: true);
                     break;
             }
         }
@@ -171,7 +180,8 @@ namespace SubGame.Core.TurnManagement
         /// <summary>
         /// Starts a new turn.
         /// </summary>
-        private void StartNewTurn()
+        /// <param name="autoAdvanceToPlayerAction">If true, automatically advances to PlayerAction phase</param>
+        private void StartNewTurn(bool autoAdvanceToPlayerAction = false)
         {
             CurrentTurn++;
             _currentEntityIndex = -1;
@@ -195,6 +205,13 @@ namespace SubGame.Core.TurnManagement
 
             TransitionToPhase(TurnPhase.TurnStart);
             OnTurnStarted?.Invoke(CurrentTurn);
+
+            // Auto-advance to PlayerAction phase for seamless turn cycling
+            if (autoAdvanceToPlayerAction)
+            {
+                TransitionToPhase(TurnPhase.PlayerAction);
+                AdvanceToNextEntity(EntityType.Submarine);
+            }
         }
 
         /// <summary>

@@ -3,7 +3,8 @@
     "rootNamespace": "SubGame.GameManagement",
     "references": [
         "SubGame.Core",
-        "SubGame.Unity"
+        "SubGame.Unity",
+        "Unity.InputSystem"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
