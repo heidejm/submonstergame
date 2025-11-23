@@ -1,7 +1,9 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using SubGame.Core;
+using SubGame.Core.AI;
 using SubGame.Core.Commands;
 using SubGame.Core.Entities;
 using SubGame.Core.Grid;
@@ -33,9 +35,13 @@ namespace SubGame.GameManagement
         private GameState _gameState;
         private Dictionary<Guid, EntityView> _entityViews = new Dictionary<Guid, EntityView>();
         private EntityView _selectedEntityView;
+        private MonsterAIController _aiController;
 
         // Store the path for the current move (calculated before move executes)
         private IReadOnlyList<GridCoordinate> _pendingMovePath;
+
+        [Header("AI Settings")]
+        [SerializeField] private float _aiTurnDelay = 1.0f; // Delay before AI acts
 
         #region Events
 
@@ -106,6 +112,13 @@ namespace SubGame.GameManagement
         private void InitializeGameState()
         {
             _gameState = new GameState(_gridWidth, _gridHeight, _gridDepth);
+
+            // Initialize AI controller with default aggressive deck
+            _aiController = new MonsterAIController();
+            _aiController.DefaultDeck = MonsterAIController.CreateDefaultAggressiveDeck();
+            _aiController.OnCardDrawn += HandleAICardDrawn;
+            _aiController.OnTurnComplete += HandleAITurnComplete;
+
             SubscribeToEvents();
 
             // Update grid visualizers if available
@@ -209,7 +222,11 @@ namespace SubGame.GameManagement
                 _entityViews[entity.Id] = view;
 
                 // Subscribe to entity events
-                entity.OnDamageTaken += (e, damage) => view.OnDamageTaken(damage);
+                entity.OnDamageTaken += (e, damage) =>
+                {
+                    view.OnDamageTaken(damage);
+                    view.UpdateHealth(e.Health, e.MaxHealth);
+                };
                 entity.OnDeath += e => view.OnDeath();
             }
             else
@@ -294,6 +311,43 @@ namespace SubGame.GameManagement
             }
 
             OnActiveEntityChanged?.Invoke(entity);
+
+            // If it's a monster's turn, trigger AI
+            if (entity != null && entity.EntityType == EntityType.Monster)
+            {
+                StartCoroutine(ExecuteAITurnWithDelay(entity));
+            }
+        }
+
+        private IEnumerator ExecuteAITurnWithDelay(IEntity monster)
+        {
+            // Wait for visual feedback
+            yield return new WaitForSeconds(_aiTurnDelay);
+
+            // Execute AI turn
+            _aiController.ExecuteTurn(monster, _gameState);
+        }
+
+        private void HandleAICardDrawn(IEntity monster, BehaviorCard card)
+        {
+            Debug.Log($"[AI] {monster.Name} drew card: {card.Name}");
+        }
+
+        private void HandleAITurnComplete(IEntity monster)
+        {
+            Debug.Log($"[AI] {monster.Name} completed turn");
+
+            // End the monster's turn after a short delay for animations
+            StartCoroutine(EndAITurnWithDelay());
+        }
+
+        private IEnumerator EndAITurnWithDelay()
+        {
+            // Wait for movement animations to complete
+            yield return new WaitForSeconds(0.5f);
+
+            // Advance to next entity
+            _gameState.EndCurrentEntityTurn();
         }
 
         #endregion
